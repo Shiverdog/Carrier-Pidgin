@@ -1,0 +1,24 @@
+{
+	"bot_token": "########################",
+	"default_github_user": "my-user",
+	"github_users": {
+		"my-user": {
+			"token": "########################",
+			"whitelisted_roles": [
+				"898288624028770324"
+			],
+			"whitelisted_webhooks": true,
+			"whitelisted_repos":[
+				"shiverdog-test-1/test"
+			],
+			"default_repo": "shiverdog-test-1/test"
+		}
+	},
+	"ping_shortcut": true,
+	"pattern_shortcuts": ["\\*\\*(?<author>.+)'s TODO:\\*\\* (?<content>.+)"],
+	"whitelist_error_messages": true,
+	"whitelist_emoji": "<:no_whitelist:1125448309302116382>",
+	"error_emoji": "<:error:1125448307053961226>",
+	"warn_emoji": "<:warning:1125448310237450302>",
+	"success_emoji": ":dove:"
+}

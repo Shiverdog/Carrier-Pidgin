@@ -1,0 +1,5 @@
+node_modules
+server.bat
+Config.json
+package.json
+package-lock.json

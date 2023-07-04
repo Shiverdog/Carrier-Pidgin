@@ -1,0 +1,69 @@
+Welcome to Carrier-Pidgin!
+
+Carrier-Pidgin is a bot that can create and manage issues in a GitHub repository from Discord.
+
+# Features
+- Creating, closing, and opening issues
+- Replying to issues
+- (optional, enable in config) Create issues by pinging the bot
+NIL Create issues by using /issue
+- Restrict to certain roles
+- Restrict to certain repositories
+- Operate through multiple GitHub users
+
+1. Install `discord.js` and `@octokit/core`
+2. Create a Config.json in the bot's main directory. Look at Config-Example.json to see how this is formatted.
+3. Run server.js
+
+# Config.json
+{
+	// Discord bot token of the bot you want to host
+	"bot_token": "#############"
+	// Dictionary of GitHub users
+	"github_users": {
+		// name of the user. you make this up yourself
+		"pidgin": {
+			// GitHub token this user will operate through
+			"token": "#################"
+			// Array of role IDs that are allowed to use this user. If false, all members can use.
+			"whitelisted_roles": [
+				"#########",
+				"#########"
+			]
+			// Array of repository names this user is allowed to access. See examples below
+			"whitelisted_repos": [
+				// User can access any respository that the GitHub user has access to. (either '*' or '*/*' works)
+				"*",
+				"*/*",
+				// User can access any repositories by the user shiverdog-test-1
+				"shiverdog-test-1/*",
+				// User can access any repositories named "test"
+				"*/test",
+				// User can access shiverdog-test-1's "test" repository.
+				"shiverdog-test-1/test"
+			],
+			// Only allow webhooks whose ID is in the array to make issues. If true, all webhooks are allowed. If false, no webhooks are. (Default: false)
+			"whitelisted_webhooks": [],
+			// Repository to create issue in if a repository is not provided. This is always allowed regardless of whitelist.
+			"default_repo": "shiverdog-test-1/test"
+		}
+	},
+	// The user this bot tries to use by default. Optional.
+	"default_github_user": "pidgin",
+	// Whether or not allowed users can create issues by pinging this bot. (default: true)
+	"ping_shortcut": true,
+	// Array of REGEX patterns that can cause an issue create. Capture group "author" sets the author name, and group "content" the content. Escape characters (\) must be escaped (\\). If false, pattern matching won't be used for making issues. (Default: False)
+	"pattern_shortcuts": [
+		"/\*\*(?<author>.+)'s TODO:\*\* (?<content>.+)/"
+	],
+	// Whether or not the bot should send a message when an unwhitelisted member tries to create an issue. If false, just reacts with `whitelist_emoji`.
+	"whitelist_error_messages": true,
+	// Emoji used when an issue was not created because the member isn't whitelisted.
+	"whitelist_emoji": "<:no_whitelist:1125448309302116382>",
+	// Emoji used when an error prevented issue from being created.
+	"error_emoji": "<:error:1125448307053961226>",
+	// Emoji used when something unexpected happened that didn't stop the issue from being created.
+	"warn_emoji": "<:warning:1125448310237450302>",
+	// Emoji used when the issue is successfully created
+	"success_emoji": ":dove:"
+}
