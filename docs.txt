@@ -11,14 +11,32 @@ NOT IMPLEMENTED YET Create issues by using /issue
 - Restrict to certain repositories
 - Operate through multiple GitHub users
 
+# Setup
 1. Install `discord.js` and `@octokit/core`
 2. Create a Config.json in the bot's main directory. Look at Config-Example.json to see how this is formatted.
 3. Run server.js
 
-To use:
-If `ping_shortcut` is enabled, ping the bot
+# Usage
+## Ping shortcut (if enabled in config):
+Ping the bot. The rest of your message will be used as the title (or comment, see Procedure Tags).
+If `show-author` is enabled, your username will be listed as the author of the issue. If a webhook was the author, no author is listed.
+## Pattern Matching Shortcut
+These are customizable using the config file. Look into the Config.json section to see how. You can use Procedure Tags here too. 
+If `show_author` is enabled, the an `author` capture group exists, it will be listed as the author of the issue. If such group does not exist, it will use your username (unless you are a webhook, in which case no author is listed). 
 
-Channel defaults:
+## /issue (NOT IMPLEMENTED YET)
+TBD
+
+## Procedure Tags (shortcuts only, not /issue)
+If you would like to comment on, open, or close an existing issue, then also include "comment-#", "open-#", "close-#", (where # is the issue number) in the issue content.
+
+Opening or closing an issue will first create a comment with the specified text.
+If you don't specify a text, it will create a comment with just the author name.
+If you have `show_author` disabled and no text is specified, it will not create a comment at all.
+## Pattern matching shortcuts (if enabled in config)
+
+
+# Channel defaults:
 To set a default user or repository in a specific channel, edit the channel topic and add the following:
 """
 <pidginUser: USER-NAME>

@@ -79,7 +79,7 @@ async function handle(message) {
 		if(config.default_github_user) {
 			usermatch = config.default_github_user
 		} else {
-			log.push(emojis.error+" Error: User is not specified, and no default is set.")
+			log.push(emojis.error+" **Error:** User is not specified, and no default is set.")
 			log_reply(message,log)
 			return
 		}
@@ -97,7 +97,7 @@ async function handle(message) {
 				console.log(log)
 				usermatch = default_user
 			} else {
-				log.push(emojis.error+" Error: User `"+usermatch+"` is not configured, and no default is set.")
+				log.push(emojis.error+" **Error:** User `"+usermatch+"` is not configured, and no default is set.")
 				log_reply(message,log)
 				return
 			}
@@ -179,7 +179,7 @@ async function handle(message) {
 			}
 		})
 		if(pattern_shortcut) {
-			let author = pattern_shortcut.groups?.author || message?.member?.user?.username
+			const author = pattern_shortcut.groups?.author || message?.member?.user?.username
 			let content = pattern_shortcut.groups?.content
 			let output = await manage(pathmatch,message,author,content,usermatch)
 			log.push(output)
@@ -190,7 +190,8 @@ async function handle(message) {
 	// Ping Shortcut
 	else if(summoned == "ping") {
 		if(message.mentions.has(client.user)) {
-			let output = await manage(pathmatch,message,message.member.user.username,message.content.replace(/<.+?> ?/, ""),usermatch)
+			const author = message?.member?.user?.username
+			const output = await manage(pathmatch,message,author,message.content.replace(/<.+?> ?/, ""),usermatch)
 			log.push(output)
 			log_reply(message,log,true)
 			return
@@ -212,43 +213,50 @@ function log_reply(message,log,past_whitelist) {
 async function manage(pathmatch,message,author,content,user) {
 	let logText
 	if(!content) {
-		return emojis.error+" Error: No content provided"
+		return emojis.error+" **Error:** No content provided"
 	}
 	let procedure = content.match(procedure_regex) // Does it contain a prodcedure like "close-17"?
 	if(procedure) {
 		content = content.replace(procedure_regex, "") // Remove procedure tag
-		let close;
+		let state;
 		if(procedure[1] == "close") {
-			close = true;
+			state = "closed";
 		} else if (procedure[1] == "open") {
-			close = false
+			state = "open"
 		}
 		issue = Number(procedure[2])
-		// comment only if there's content or author snitching disabled
-		let url;
-		if(content || !config.show_author)
+		// comment only if there's content or (author snitching disabled and we have an author).
+		const parent_issue = await get(pathmatch,issue,user)
+		if (!parent_issue) {
+			logText = emojis.error+" **Error:** GitHub API Error"
+			return logText
+		}
+		if(parent_issue?.data?.state == state) {
+			logText = emojis.error+" **Error:** Issue already "+state
+			return logText
+		}
+		if(content || (!config.show_author && author))
 		{
 			const comment_result = await comment(pathmatch,author,content,issue,user)
 			// Find issue URL and issue content
-			const parent_issue = await get(pathmatch,issue,user)
-			let allContent = content || "Author: "+author
+			let allContent = content || ("Author: "+author)
 			logText = emojis.success+" **Commented** [*\""+allContent+"\"*](<"+comment_result?.data?.html_url+">) on Issue #"+parent_issue?.data?.number + " [*\""+parent_issue?.data?.title+"\"*](<"+parent_issue?.data?.html_url+">)"
 		}
-		if(!(close === undefined)) {
+		if(state) {
 			// We're also making changes to the issue itself
-			const update_result = await update(pathmatch,author,content,issue,close,user)
+			const update_result = await update(pathmatch,author,content,issue,state,user)
 			if (update_result) {
-				logText += "\n"+emojis.success+" **Closed** Issue #"+update_result?.data?.number+" [*\"Issue Title\"*](<"+update_result?.data?.html_url+">)"
+				logText += "\n"+emojis.success+" **Closed** Issue #"+update_result?.data?.number+" [*\""+update_result?.data?.title+"\"*](<"+update_result?.data?.html_url+">)"
 			} else {
-				logText += "\n"+emojis.error+" Error: GitHub API Error"
+				logText += "\n"+emojis.error+" **Error:** GitHub API Error"
 			}
 		}
 	} else {
 		const result = await todo(pathmatch,author,content,user)
 		if(result) {
-			logText = emojis.success+" **Opened** Issue #"+result?.data?.number+" [*\"Issue Title\"*](<"+result?.data?.html_url+">)"
+			logText = emojis.success+" **Opened** Issue #"+result?.data?.number+" [*\""+result?.data?.title+"\"*](<"+result?.data?.html_url+">)"
 		} else {
-			logText = emojis.error+" Error: GitHub API Error"
+			logText = emojis.error+" **Error:** GitHub API Error"
 		}
 	}
 	return logText;
@@ -259,7 +267,7 @@ async function todo(pathmatch,author,content,user) {
 	  owner: pathmatch[0],
 	  repo: pathmatch[1],
 	  title: content,
-	  body: 'Author: '+author,
+	  body: author ? 'Author: '+author : undefined,
 	  labels: [],
 	  headers: {
 		'X-GitHub-Api-Version': '2022-11-28'
@@ -301,7 +309,7 @@ async function update(pathmatch,author,content,issue,close,user) {
 	  owner: pathmatch[0],
 	  repo: pathmatch[1],
 	  issue_number: issue,
-	  state: close ? "true" : "false",
+	  state: close,
 	  headers: {
 		'X-GitHub-Api-Version': '2022-11-28'
 	  }
