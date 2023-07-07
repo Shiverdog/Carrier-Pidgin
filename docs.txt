@@ -1,12 +1,12 @@
 Welcome to Carrier-Pidgin!
 
-Carrier-Pidgin is a bot that can create and manage issues in a GitHub repository from Discord.
+Carrier-Pidgin is a bot that can create and manage issues in a GitHub repository from Discord. This is specifically useful for making todo-list items.
 
 # Features
 - Creating, closing, and opening issues
-- Replying to issues
+- Commenting on issues
 - (optional, enable in config) Create issues by pinging the bot
-NIL Create issues by using /issue
+NOT IMPLEMENTED YET Create issues by using /issue
 - Restrict to certain roles
 - Restrict to certain repositories
 - Operate through multiple GitHub users
@@ -15,11 +15,26 @@ NIL Create issues by using /issue
 2. Create a Config.json in the bot's main directory. Look at Config-Example.json to see how this is formatted.
 3. Run server.js
 
+To use:
+If `ping_shortcut` is enabled, ping the bot
+
+Channel defaults:
+To set a default user or repository in a specific channel, edit the channel topic and add the following:
+"""
+<pidginUser: USER-NAME>
+<pidginRepo: USER/REPO>
+"""
+If a user or repository is specified in the argument of a /issue command [WHICH IS NOT IMPLEMENTED YET],
+it takes priority over the channel defaults,
+which take priority over the config defaults.
+
+The ping shortcut and pattern matching shortcuts currently do not allow for you to specify a user or repository. They will always use either the channel default or config default.
+
 # Config.json
 {
 	// Discord bot token of the bot you want to host
 	"bot_token": "#############"
-	// Dictionary of GitHub users
+	// Dictionary of GitHub users. It is possible to use the same token for multiple "users" and change other parameters.
 	"github_users": {
 		// name of the user. you make this up yourself
 		"pidgin": {

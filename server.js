@@ -11,9 +11,16 @@ const client = new Client({
     }
 })
 
-const procedure_regex = /(open|reply|close)-(\d+) ?/;
+const procedure_regex = /(open|comment|close)-(\d+) ?/;
 
 const config = require('./Config.json')
+const emojis = {
+	"success": config.success_emoji || ":dove:",
+	"error": config.error_emoji || ":x:",
+	"warn": config.warn_emoji || ":warning:",
+	"whitelist": config.whitelist_emoji || ":no_entry:"
+}
+
 // Octokit.js
 // https://github.com/octokit/core.js#readme
 let octokits = {}
@@ -72,7 +79,7 @@ async function handle(message) {
 		if(config.default_github_user) {
 			usermatch = config.default_github_user
 		} else {
-			log.push((config.error_emoji || ":x:")+" Error: User is not specified, and no default is set.")
+			log.push(emojis.error+" Error: User is not specified, and no default is set.")
 			log_reply(message,log)
 			return
 		}
@@ -80,17 +87,17 @@ async function handle(message) {
 	// Verify user exists
 	let default_user = config.default_github_user
 	if(!config.github_users[default_user]) {
-		log.push((config.warn_emoji || ":warning:") +" Warning: Default user `"+default_user+"` is not configured! Proceeding with no default user.")
+		log.push(emojis.warn +" Warning: Default user `"+default_user+"` is not configured! Proceeding with no default user.")
 		default_user = null;
 	}
 	while(true) { // until we find a working user or determine that no default is acceptable
 		if (!config.github_users[usermatch]) {
 			if(default_user) {
-				log.push((config.warn_emoji || ":warning:")+" Warning: User `"+usermatch+"` is not configured! Falling back to `"+default_user+"`")
+				log.push(emojis.warn+" Warning: User `"+usermatch+"` is not configured! Falling back to `"+default_user+"`")
 				console.log(log)
 				usermatch = default_user
 			} else {
-				log.push((config.error_emoji || ":x:")+" Error: User `"+usermatch+"` is not configured, and no default is set.")
+				log.push(emojis.error+" Error: User `"+usermatch+"` is not configured, and no default is set.")
 				log_reply(message,log)
 				return
 			}
@@ -110,7 +117,7 @@ async function handle(message) {
 			console.log(!config.github_users[usermatch].whitelisted_webhooks)
 			if (!config.github_users[usermatch].whitelisted_webhooks) {
 				// Whitelisted webhooks is not defined, so all webhooks must fail
-				log.push((config.whitelist_emoji || ":no_entry:")+" No webhooks are whitelisted for user `"+usermatch+"`.")
+				log.push(emojis.whitelist+" No webhooks are whitelisted for user `"+usermatch+"`.")
 				log_reply(message,log)
 				return
 			}
@@ -118,7 +125,7 @@ async function handle(message) {
 				// Whitelisted webhooks is not set to literal true. If it were, all webhooks would pass.
 				if (!config.github_users[usermatch].whitelisted_webhooks.includes(message.webhookId)) {
 					// Webhook is not whitelisted so it should fail
-					log.push((config.whitelist_emoji || ":no_entry:")+" The webhook `"+message.webhookId+"` is not whitelisted for user `"+usermatch+"`.")
+					log.push(emojis.whitelist+" The webhook `"+message.webhookId+"` is not whitelisted for user `"+usermatch+"`.")
 					log_reply(message,log)
 					return
 				}
@@ -126,7 +133,7 @@ async function handle(message) {
 		} else {
 			// Whitelisted roles (guild member)
 			if (!message?.member?.roles.cache.some(role => config.github_users[usermatch].whitelisted_roles.includes(role.id))) {
-				log.push((config.whitelist_emoji || ":no_entry:") + " A whitelist is set up, but you do not have a whitelisted role")
+				log.push(emojis.whitelist + " A whitelist is set up, but you do not have a whitelisted role")
 				log_reply(message,log)
 				return
 			}
@@ -158,7 +165,7 @@ async function handle(message) {
 		})
 	}
 	if (!whitelisted_repo) {
-		log.push((config.error_emoji || ":x:")+ " Repository `"+pathmatch[0]+"/"+pathmatch[1]+"` not whitelisted for user `"+usermatch+"`.")
+		log.push(emojis.error+ " Repository `"+pathmatch[0]+"/"+pathmatch[1]+"` not whitelisted for user `"+usermatch+"`.")
 		log_reply(message,log,true)
 		return
 	}
@@ -193,7 +200,7 @@ async function handle(message) {
 function log_reply(message,log,past_whitelist) {
 	if(!past_whitelist) {
 		if(config.whitelist_error_messages === false) {
-			message.react(config.whitelist_emoji || ":no_entry:")
+			message.react(emojis.whitelist)
 			return
 		}
 	}
@@ -201,10 +208,11 @@ function log_reply(message,log,past_whitelist) {
 }
 
 // The handle() function wanted us to interface with the GitHub API.
-// Before we talk to GitHub, figure out what do we need to do. Create an issue? Reply?
+// Before we talk to GitHub, figure out what do we need to do. Create an issue? Comment?
 async function manage(pathmatch,message,author,content,user) {
+	let logText
 	if(!content) {
-		return (config.error_emoji || ":x:")+" Error: No content provided"
+		return emojis.error+" Error: No content provided"
 	}
 	let procedure = content.match(procedure_regex) // Does it contain a prodcedure like "close-17"?
 	if(procedure) {
@@ -216,29 +224,34 @@ async function manage(pathmatch,message,author,content,user) {
 			close = false
 		}
 		issue = Number(procedure[2])
-		// reply only if there's content or author snitching disabled
+		// comment only if there's content or author snitching disabled
 		let url;
 		if(content || !config.show_author)
 		{
-			const result_1 = await reply(pathmatch,author,content,issue,user)
-			url = result_1?.data?.html_url
+			const comment_result = await comment(pathmatch,author,content,issue,user)
+			// Find issue URL and issue content
+			const parent_issue = await get(pathmatch,issue,user)
+			let allContent = content || "Author: "+author
+			logText = emojis.success+" **Commented** [*\""+allContent+"\"*](<"+comment_result?.data?.html_url+">) on Issue #"+parent_issue?.data?.number + " [*\""+parent_issue?.data?.title+"\"*](<"+parent_issue?.data?.html_url+">)"
 		}
-		const result_2 = await update(pathmatch,author,content,issue,close,user)
-		url = url || result_2?.data?.html_url
-		if (result) {
-			return (config.success_emoji || ":dove:")+" [Issue "+issue+"](<"+url+">)"
-		} else {
-			return (config.error_emoji || ":x:")+" Error: GitHub API Error"
+		if(!(close === undefined)) {
+			// We're also making changes to the issue itself
+			const update_result = await update(pathmatch,author,content,issue,close,user)
+			if (update_result) {
+				logText += "\n"+emojis.success+" **Closed** Issue #"+update_result?.data?.number+" [*\"Issue Title\"*](<"+update_result?.data?.html_url+">)"
+			} else {
+				logText += "\n"+emojis.error+" Error: GitHub API Error"
+			}
 		}
 	} else {
 		const result = await todo(pathmatch,author,content,user)
-		let url = result?.data?.html_url
 		if(result) {
-			return (config.success_emoji || ":dove:")+" [Issue "+result?.data?.number+"](<"+url+">) \""+content+"\""
+			logText = emojis.success+" **Opened** Issue #"+result?.data?.number+" [*\"Issue Title\"*](<"+result?.data?.html_url+">)"
 		} else {
-			return (config.error_emoji || ":x:")+" Error: GitHub API Error"
+			logText = emojis.error+" Error: GitHub API Error"
 		}
 	}
+	return logText;
 }
 
 async function todo(pathmatch,author,content,user) {
@@ -255,7 +268,7 @@ async function todo(pathmatch,author,content,user) {
 	return response;
 }
 
-async function reply(pathmatch,author,content,issue,user) {
+async function comment(pathmatch,author,content,issue,user) {
 	if (!(config.show_author === false)) {
 		content = content + "\nAuthor: "+author
 	}
@@ -271,12 +284,24 @@ async function reply(pathmatch,author,content,issue,user) {
 	return response;
 }
 
+async function get(pathmatch,issue,user) {
+	const response = await octokits[user].request('GET /repos/'+pathmatch[0]+'/'+pathmatch[1]+'/issues/'+issue, {
+	  owner: pathmatch[0],
+	  repo: pathmatch[1],
+	  issue_number: issue,
+	  headers: {
+		'X-GitHub-Api-Version': '2022-11-28'
+	  }
+	}).catch(console.log)
+	return response;
+}
+
 async function update(pathmatch,author,content,issue,close,user) {
 	const response = await octokits[user].request('PATCH /repos/'+pathmatch[0]+'/'+pathmatch[1]+'/issues/'+issue, {
 	  owner: pathmatch[0],
 	  repo: pathmatch[1],
 	  issue_number: issue,
-	  state: close,
+	  state: close ? "true" : "false",
 	  headers: {
 		'X-GitHub-Api-Version': '2022-11-28'
 	  }
